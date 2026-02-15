@@ -1,0 +1,30 @@
+[project]
+name = "gx10-benchmark-for-habr"
+version = "1.0.0"
+description = "Бенчмарк GPU для LLM инференса с использованием vLLM"
+requires-python = ">=3.10"
+dependencies = [
+    "plotly>=5.18.0",
+    "pandas>=2.0.0",
+    "kaleido>=0.2.1",
+    "numpy>=1.24.0",
+    "pyarrow>=22.0.0",
+    "fastparquet>=2025.12.0",
+    "jupyter>=1.1.1",
+    "huggingface-hub>=1.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+line-length = 90
+target-version = "py310"
+
+[tool.black]
+line-length = 90
+target-version = ["py310"]

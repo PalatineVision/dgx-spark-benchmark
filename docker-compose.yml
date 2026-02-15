@@ -1,0 +1,105 @@
+services:
+  benchmark:
+    build: .
+    container_name: gx10-benchmark
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      # Конфигурация через файл (приоритет)
+      - BENCHMARK_CONFIG_FILE=/workspace/benchmark_config.json
+      # ИЛИ конфигурация через переменные окружения:
+      # - BENCHMARK_MODELS=Qwen/Qwen3-0.6B@http://vllm-server:8000:fp16,Qwen/Qwen3-8B@http://vllm-fp8:8001:fp8
+      # - BENCHMARK_CONCURRENCY=1,10,50,100
+      # - BENCHMARK_NUM_PROMPTS=10
+      # - BENCHMARK_INPUT_LENGTHS=128,512,1024,3000
+      # - BENCHMARK_OUTPUT_LENGTHS=128,512,1024
+      # - BENCHMARK_DATASET=random
+      # - BENCHMARK_BASE_HOST=http://localhost
+      # - BENCHMARK_TIMEOUT=600
+    volumes:
+      # Результаты и графики сохраняются на хост
+      - ./results:/workspace/results
+      - ./plots:/workspace/plots
+      - hf_cache:/root/.cache/huggingface
+      - torch_cache:/workspace/torch_cache
+      # Можно переопределить конфиг на хосте
+      - ./benchmark_config.json:/workspace/benchmark_config.json:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
+    depends_on:
+      vllm-server:
+        condition: service_healthy
+      vllm-server-fp8:
+        condition: service_healthy
+    command: python /workspace/benchmark.py
+
+  # Сервис для запуска vLLM сервера отдельно
+  vllm-server:
+    build: .
+    container_name: vllm-server
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      interval: 10s       # Как часто проверять
+      timeout: 5s         # Таймаут одной проверки
+      retries: 30          # Сколько раз ошибиться до статуса unhealthy
+      start_period: 60s   # Дать 60с на загрузку модели перед тем как начать считать
+    command: >
+      vllm serve Qwen/Qwen3-4B
+      --port 8000
+      --dtype bfloat16
+      --max-model-len 32000
+      --gpu-memory-utilization 0.5
+      --disable-log-requests
+      --no-enable-prefix-caching
+      --disable-hybrid-kv-cache-manager
+
+  vllm-server-fp8:
+    build: .
+    container_name: vllm-server-fp8
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8001/health || exit 1" ]
+      interval: 10s       # Как часто проверять
+      timeout: 5s         # Таймаут одной проверки
+      retries: 30          # Сколько раз ошибиться до статуса unhealthy
+      start_period: 60s   # Дать 60с на загрузку модели перед тем как начать считать
+    command: >
+      vllm serve Qwen/Qwen3-4B-FP8
+      --port 8001
+      --dtype auto
+      --max-model-len 32000
+      --gpu-memory-utilization 0.5
+      --disable-log-requests
+      --no-enable-prefix-caching
+      --disable-hybrid-kv-cache-manager
+
+volumes:
+  hf_cache:
+  torch_cache:

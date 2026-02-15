@@ -1,0 +1,19 @@
+{
+    "models": [
+        {"name": "Qwen/Qwen3-4B", "host": "http://vllm-server", "port": 8000, "metadata": "GB10-bfloat16"},
+        {"name": "Qwen/Qwen3-4B-FP8", "host": "http://vllm-server-fp8", "port": 8001, "metadata": "GB10-fp8"}
+    ],
+    "max_concurrency_values": [1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+    "num_prompts": 50,
+    "input_lengths": [32000],
+    "output_lengths": [1024],
+    "results_dir": "/workspace/results",
+    "dataset_name": "custom",
+    "dataset_path": [
+      "/workspace/dataset/low_context_chat.jsonl",
+      "/workspace/dataset/middle_context_rag.jsonl",
+      "/workspace/dataset/long_context_rag.jsonl"
+    ],
+    "base_host": "http://localhost",
+    "timeout": 600
+}
